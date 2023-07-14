@@ -5,8 +5,8 @@ Individual Project for MSc Data Science in University of Glasgow
 - [x] Week &ensp;1 - 12th Jun. - Initial Week
 - [x] Week &ensp;2 - 19th Jun. - Literature Review
 - [x] Week &ensp;3 - 26th Jun. - Summarising papers and MonoT5 tryout
-- [ ] Week &ensp;4 - &ensp;3rd Jul. - Setting up the codebase and doing some basic experiments
-- [ ] Week &ensp;5 - 10th Jul.
+- [x] Week &ensp;4 - &ensp;3rd Jul. - Setting up the codebase and doing some basic experiments
+- [x] Week &ensp;5 - 10th Jul. - Doing experiment 1
 - [ ] Week &ensp;6 - 17th Jul.
 - [ ] Week &ensp;7 - 24th Jul.
 - [ ] Week &ensp;8 - 31st Jul.
