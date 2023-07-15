@@ -76,8 +76,6 @@ def main(
         }
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    loss_fn = nn.CrossEntropyLoss(ignore_index=-100, reduction='none')
-  
 
     ## INIT MODEL ##
 
