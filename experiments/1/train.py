@@ -57,7 +57,7 @@ def main(
     ## INIT DATA ##
 
     with open(data_dir, 'r') as f:
-        dataset = pd.read_json(f, orient='records', lines=True, dtype={'query_id': str, 'doc_id_a': str, 'doc_id_b': list})
+        dataset = pd.read_json(f, orient='records', lines=True, dtype={'query_id': str, 'doc_id_a': str, 'doc_id_b': str})
     
     if negative_dir:
         with open(negative_dir, 'rb') as f:
