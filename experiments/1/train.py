@@ -44,7 +44,7 @@ def swap_negatives(df : pd.DataFrame, lookup : dict):
 _logger = irds.log.easy()
 
 def main(
-        data_dir : str, # Stored docpairs subsample, currently JSON format
+        data_dir : str, # Stored docpairs subsample, currently CSV format
         dataset_name : str, # ir_datasets dataset name for text lookup
         out_dir : str, # Output directory for model and logs
         negative_dir : str = None, # Stored negative samples, currently serialized dict of form {qid : doc_id_b}
@@ -56,8 +56,7 @@ def main(
 
     ## INIT DATA ##
 
-    with open(data_dir, 'r') as f:
-        dataset = pd.read_json(f, orient='records', lines=True, dtype={'query_id': str, 'doc_id_a': str, 'doc_id_b': str})
+    dataset = pd.read_csv(data_dir, index=False, header=0, names=['qid', 'doc_id_a', 'doc_id_b'])
     
     if negative_dir:
         with open(negative_dir, 'rb') as f:
