@@ -41,7 +41,9 @@ def swap_negatives(df : pd.DataFrame, lookup : dict):
     df['doc_id_b'] = df['qid'].apply(lambda x: lookup[x])
     return df
 
+
 _logger = irds.log.easy()
+
 
 def main(
         data_dir : str, # Stored docpairs subsample, currently CSV format
