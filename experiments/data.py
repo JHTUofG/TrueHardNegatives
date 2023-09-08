@@ -10,66 +10,20 @@ STORAGE_DIR = r'data'
 count = 0
 OUTPUTS = ["true", "false"]
 
-class NegativeDataset:
-    # def __init__(self, pairs, bm25_idx, true_idx, corpus):
-    def __init__(self, pairs, bm25_idx, true_idx, docs, queries):
+
+class NegativeDataset(Dataset):
+    """
+    class that used to mix the true hard negative into the dataset
+    """
+    def __init__(self, pairs, bm25_idx, true_idx, corpus, batch_size, initial_fraction=0.5):
         self.bm25_idx = bm25_idx
         self.true_idx = true_idx
-        self.docs = docs
-        queries = queries
-        # self.docs = pd.DataFrame(corpus.docs_iter()).set_index('doc_id').text.to_dict()
-        # queries = pd.DataFrame(corpus.queries_iter()).set_index('query_id').text.to_dict()
+        self.docs = pd.DataFrame(corpus.docs_iter()).set_index('doc_id').text.to_dict()
+        queries = pd.DataFrame(corpus.queries_iter()).set_index('query_id').text.to_dict()
 
-        self.data = [(queries[q], self.docs[p]) for q, p in pairs]
-
-    def __len__(self):
-        return len(self.data)
-    
-    def get_item(self, idx, hard=False):
-        q, p = self.data[idx]
-        n = self.true_idx[idx] if hard else self.bm25_idx[idx]
-        
-        return q, p, self.docs[n]
-
-class NegativeLoader:
-    def __init__(self, dataset, batch_size, initial_fraction=0.5) -> None:
-        self.dataset = dataset
         self.batch_size = batch_size
         self.fraction = initial_fraction
-    
-    def __len__(self):
-        return len(self.dataset)
-    
-    def format(self, q, d):
-        return 'Query: ' + q + ' Document: ' + d + ' Relevant:'
-    
-    def get_batch(self, idx):
-        num_true = ceil(self.fraction * self.batch_size)
         
-        inp, label = [], []
-        
-        for i, j in enumerate(range(idx * self.batch_size, (idx + 1) * self.batch_size)):
-            hardness = i < num_true
-            
-            q, p, n = self.dataset.get_item(j, hardness)
-            
-            inp.append(self.format(q, p))
-            inp.append(self.format(q, n))
-            label.append(OUTPUTS[0])
-            label.append(OUTPUTS[1])
-        
-        return inp, label
-    
-class TestNegativeDataset(Dataset):
-    def __init__(self, pairs, bm25_idx, true_idx, docs, queries, batch_size, initial_fraction=0.5):
-        self.bm25_idx = bm25_idx
-        self.true_idx = true_idx
-        self.docs = docs
-        queries = queries
-        # self.dataset = dataset
-        self.batch_size = batch_size
-        self.fraction = initial_fraction
-
         self.data = [(queries[q], self.docs[p]) for q, p in pairs]
 
     def __len__(self):
@@ -85,7 +39,7 @@ class TestNegativeDataset(Dataset):
         return 'Query: ' + q + ' Document: ' + d + ' Relevant:'
     
     def __getitem__(self, idx):
-        # if idx < (len(self.data) / self.batch_size):
+        # mix a certain ratio of true hard negatives
         num_true = ceil(self.fraction * self.batch_size)
 
         inp, label = [], []
@@ -102,7 +56,12 @@ class TestNegativeDataset(Dataset):
         
         return inp, label
 
+
 def collect_negatives() -> dict:
+    """
+    function used to build the negative lookup
+    :return: dict - a dictionary of negative lookup
+    """
     negatives = ir_datasets.load("msmarco-qna/train")
     qrels = pd.DataFrame(negatives.qrels_iter())
     qid_grouped = qrels.groupby('query_id')
@@ -127,13 +86,30 @@ def collect_negatives() -> dict:
     
     return negative_lookup
 
-def sample_df(df, n, save_as) -> pd.DataFrame:
+
+def sample_df(df: pd.DataFrame, n: int, save_as: str) -> pd.DataFrame:
+    """
+    sampling a certain amount of data from a DataFrame
+    :param df: pd.DataFrame - the candidate DataFrame
+    :param n: int - the size of the new DataFrame
+    :param save_as: str - name of the file
+    :return: pd.DataFrame - a new DataFrame
+    """
     new_df = df.sample(n=n)
     new_df.to_csv(f'{STORAGE_DIR}/{save_as}.csv', header=False, index=False)
     
     return new_df
 
-def cross_sampling(docpairs : pd.DataFrame, negative_lookup : dict, n : int = 0, full : bool = False) -> pd.DataFrame:
+
+def cross_sampling(docpairs: pd.DataFrame, negative_lookup: dict, n: int = 0, full: bool = False) -> pd.DataFrame:
+    """
+    cross sampling the docpairs with the negative lookup to generate the intersection subset
+    :param docpairs: pd.DataFrame
+    :param negative_lookup: dict
+    :param n: int - cross-sample a certain amount of data
+    :param full: bool - cross-sample the full size data if True
+    :return: pd.DataFrame - a cross-sampled new DataFrame
+    """
     sampled = []
     neg_keys = negative_lookup.keys()
     
@@ -149,23 +125,26 @@ def cross_sampling(docpairs : pd.DataFrame, negative_lookup : dict, n : int = 0,
     return sampled_df
                 
 
-def true_negatives(df, negative_lookup) -> tuple[pd.DataFrame, int]:
-    
-    def counter(x):
-        global count
-        count += 1
-        return x.doc_id_b
-    
+def true_negatives(df: pd.DataFrame, negative_lookup: dict, prefix: str = '') -> pd.DataFrame:
+    """
+    using the negative lookup to build the true negatives
+    :param df: pd.DataFrame - the docpairs
+    :param negative_lookup: dict - the pre-built negative lookup
+    :param prefix: str - a prefix for the file name
+    :return: pd.DataFrame - a new DataFrame with true negatives
+    """
     new_df = df.copy()
-    new_df['doc_id_b'] = new_df['query_id'].apply(lambda x : negative_lookup[x])
-    ## new_df['doc_id_b'] = new_df.apply(lambda x : negative_lookup[x.query_id] if x.query_id in negative_lookup.keys() else counter(x), axis=1)
-    # new_df['doc_id_b'] = new_df.apply(lambda x : negative_lookup[x.query_id][0].split('-')[0] if x.query_id in negative_lookup.keys() else count(x), axis=1)
-    # ave_data(new_df, STORAGE_DIR, 'truenegative_docpairs')
-    new_df.to_csv(f'{STORAGE_DIR}/truenegative_docpairs.csv', header=False, index=False)
+    new_df['doc_id_b'] = new_df['query_id'].apply(lambda x: negative_lookup[x])
+    new_df.to_csv(f'{STORAGE_DIR}/{prefix}_truenegative_docpairs.csv', header=False, index=False)
     
-    return new_df, count
+    return new_df
 
-def dataset_from_idx(dataset, triplets, save_as) -> pd.DataFrame:
+
+def dataset_from_idx(dataset: ir_datasets.datasets.base.Dataset, triplets: pd.DataFrame, save_as: str) -> pd.DataFrame:
+    """
+    default method for building the dataset
+
+    """
     frame = triplets
     docs = pd.DataFrame(dataset.docs_iter()).set_index('doc_id').text.to_dict()
     queries = pd.DataFrame(dataset.queries_iter()).set_index('query_id').text.to_dict()
